@@ -85,7 +85,7 @@ def main() -> None:
     input_text = ""
     with open("input.txt", "r", encoding="utf-8") as file:
         input_text = file.read()
-    chunks = textwrap.wrap(input_text, 2000)
+    chunks = textwrap.wrap(input_text, 4096)
 
     print("Number of chunks:", len(chunks))
     input("Press Enter to continue...")
