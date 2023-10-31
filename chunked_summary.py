@@ -74,7 +74,7 @@ class OpenAIClient:
     @staticmethod
     def log_response(messages: List[Dict[str, str]], response: Dict) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        out_text = json.dumps({"PROMPT": messages, "RESPONSE": response}, indent=4)
+        out_text = json.dumps({"timestamp": timestamp, "input": messages, "output": response}, indent=4)
         with open(f"gpt_logs/{timestamp}_gpt.txt", "w", encoding="utf-8") as file:
             file.write(out_text)
 
