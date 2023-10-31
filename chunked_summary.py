@@ -25,7 +25,7 @@ def main() -> None:
 
     chunks = textwrap.wrap(input_text, 4096)
 
-    logging.info("Number of chunks:", len(chunks))
+    logging.info(f"Number of chunks: {len(chunks)}")
     input("Press Enter to continue...")
     logging.info("\n\n")
 
