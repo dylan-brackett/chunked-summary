@@ -27,7 +27,6 @@ def main() -> None:
 
     logging.info(f"Number of chunks: {len(chunks)}")
     input("Press Enter to continue...")
-    logging.info("\n\n")
 
     system_prompt = safe_read_text("prompt.txt")
     if not system_prompt:
