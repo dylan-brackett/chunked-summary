@@ -26,9 +26,10 @@ class ChatCompletionParams:
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     user: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v is not None}
+
 
 class OpenAIClient:
     def __init__(self, api_key: Optional[str] = None) -> None:
@@ -48,7 +49,9 @@ class OpenAIClient:
     def ensure_logs_directory_exists() -> None:
         os.makedirs("gpt_logs", exist_ok=True)
 
-    def chat_completion(self, params: ChatCompletionParams, max_retries: int = 10) -> str:
+    def chat_completion(
+        self, params: ChatCompletionParams, max_retries: int = 10
+    ) -> str:
         for retry in range(max_retries + 1):
             try:
                 response = openai.ChatCompletion.create(**params.to_dict())
@@ -75,6 +78,7 @@ class OpenAIClient:
         with open(f"gpt_logs/{timestamp}_gpt.txt", "w", encoding="utf-8") as file:
             file.write(out_text)
 
+
 def main() -> None:
     client = OpenAIClient()
 
@@ -93,7 +97,12 @@ def main() -> None:
 
     results = []
     for count, chunk in enumerate(chunks, start=1):
-        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": chunk}]
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt.replace("<<TEXT TO SUMMARIZE>>", chunk),
+            }
+        ]
         params = ChatCompletionParams(messages=messages)
         completion = client.chat_completion(params)
         print("-- COMPLETION --\n\n")
@@ -103,6 +112,7 @@ def main() -> None:
 
     with open("output.txt", "w", encoding="utf-8") as file:
         file.write("\n\n".join(results))
+
 
 if __name__ == "__main__":
     main()

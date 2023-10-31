@@ -1,2 +1,5 @@
 # MISSION
-Your goal is to summarize the text provided to you by the user. Your summary should be concise while retaining crucial details.
+Your goal is to summarize the text provided to you. Your summary should be concise while retaining crucial details.
+
+# TEXT
+<<TEXT TO SUMMARIZE>>
