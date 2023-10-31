@@ -2,9 +2,33 @@ import json
 import os
 import textwrap
 import time
-from typing import List, Dict, Optional
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
+
 import openai
+from openai.error import OpenAIError
+
+
+@dataclass
+class ChatCompletionParams:
+    messages: List[Dict[str, str]]
+    model: str = "gpt-3.5-turbo"
+    frequency_penalty: Optional[float] = None
+    function_call: Optional[Union[str, Dict[str, Any]]] = None
+    functions: Optional[List[Any]] = None
+    logit_bias: Optional[Dict[int, float]] = None
+    max_tokens: Optional[int] = None
+    n: Optional[int] = None
+    presence_penalty: Optional[float] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: Optional[bool] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    user: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {k: v for k, v in asdict(self).items() if v is not None}
 
 class OpenAIClient:
     def __init__(self, api_key: Optional[str] = None) -> None:
@@ -24,21 +48,25 @@ class OpenAIClient:
     def ensure_logs_directory_exists() -> None:
         os.makedirs("gpt_logs", exist_ok=True)
 
-    def chat_completion(self, messages: List[Dict[str, str]], model: str = "gpt-3.5-turbo", max_retries: int = 10) -> str:
+    def chat_completion(self, params: ChatCompletionParams, max_retries: int = 10) -> str:
         for retry in range(max_retries + 1):
             try:
-                response = openai.ChatCompletion.create(model=model, messages=messages)
+                response = openai.ChatCompletion.create(**params.to_dict())
                 content = response["choices"][0]["message"]["content"].strip()
-                self.log_response(messages, response)
+                self.log_response(params.messages, response)
                 return content
-            except Exception as e:
+            except OpenAIError as e:
+                print(f"OpenAI API error: {e}")
                 if retry < max_retries:
                     sleep_time = (retry + 1) * 1.1
-                    print(f"Error: {e}")
-                    print(f"Sleeping for {sleep_time:.2f} seconds")
+                    print(f"Sleeping for {sleep_time:.2f} seconds before retrying...")
                     time.sleep(sleep_time)
                 else:
-                    raise e from None
+                    print("Maximum retries reached. Unable to complete the request.")
+                    raise
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                raise
 
     @staticmethod
     def log_response(messages: List[Dict[str, str]], response: Dict) -> None:
@@ -66,12 +94,12 @@ def main() -> None:
     results = []
     for count, chunk in enumerate(chunks, start=1):
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": chunk}]
-        completion = client.chat_completion(messages)
+        params = ChatCompletionParams(messages=messages)
+        completion = client.chat_completion(params)
         print("-- COMPLETION --\n\n")
         print(f"{completion}\n\n")
         results.append(completion)
         print(f"Chunk {count} of {len(chunks)} completed\n\n")
-        time.sleep(1)
 
     with open("output.txt", "w", encoding="utf-8") as file:
         file.write("\n\n".join(results))
