@@ -2,98 +2,79 @@ import json
 import os
 import textwrap
 import time
+from typing import List, Dict, Optional
 from datetime import datetime
-
 import openai
 
+class OpenAIClient:
+    def __init__(self, api_key: Optional[str] = None) -> None:
+        self.api_key = api_key or self._load_api_key()
+        openai.api_key = self.api_key
+        self.ensure_logs_directory_exists()
 
-def save_file(text, filename):
-    with open(filename, "w", encoding="utf-8") as infile:
-        infile.write(text)
+    @staticmethod
+    def _load_api_key() -> str:
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key is not None:
+            return env_key
+        with open("openai_api_key.txt", "r", encoding="utf-8") as file:
+            return file.read().strip()
 
+    @staticmethod
+    def ensure_logs_directory_exists() -> None:
+        os.makedirs("gpt_logs", exist_ok=True)
 
-def read_file(filename):
-    with open(filename, "r", encoding="utf-8") as outfile:
-        return outfile.read()
+    def chat_completion(self, messages: List[Dict[str, str]], model: str = "gpt-3.5-turbo", max_retries: int = 10) -> str:
+        for retry in range(max_retries + 1):
+            try:
+                response = openai.ChatCompletion.create(model=model, messages=messages)
+                content = response["choices"][0]["message"]["content"].strip()
+                self.log_response(messages, response)
+                return content
+            except Exception as e:
+                if retry < max_retries:
+                    sleep_time = (retry + 1) * 1.1
+                    print(f"Error: {e}")
+                    print(f"Sleeping for {sleep_time:.2f} seconds")
+                    time.sleep(sleep_time)
+                else:
+                    raise e from None
 
-
-def get_openai_key():
-    env_key = os.getenv("OPENAI_API_KEY")
-    if env_key is not None:
-        openai.api_key = env_key
-
-    openai.api_key = read_file("openai_api_key.txt")
-
-
-def chat_completion(messages, model="gpt-3.5-turbo", max_retries=10):
-    retries = 0
-
-    while True:
-        try:
-            completion = openai.ChatCompletion.create(
-                model=model,
-                messages=messages,
-            )
-            retries = 0
-        except Exception as e:
-            if retries < max_retries:
-                retries += 1
-                sleep_time = retries * 1.1
-                print(f"Error: {e}")
-                print(f"Sleeping for {sleep_time} seconds")
-                time.sleep(sleep_time)
-                continue
-            else:
-                raise e
-
-        response_message = completion["choices"][0]["message"]
-
-        response_text = response_message["content"].strip()
-
+    @staticmethod
+    def log_response(messages: List[Dict[str, str]], response: Dict) -> None:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        out_text = json.dumps({"PROMPT": messages, "RESPONSE": response}, indent=4)
+        with open(f"gpt_logs/{timestamp}_gpt.txt", "w", encoding="utf-8") as file:
+            file.write(out_text)
 
-        out_text = (
-            "PROMPT:\n\n"
-            + json.dumps(messages, indent=4)
-            + "\n\nRESPONSE:\n\n"
-            + json.dumps(response_message, indent=4)
-        )
-        save_file(out_text, f"gpt_logs/{timestamp}_gpt.txt")
+def main() -> None:
+    client = OpenAIClient()
 
-        return response_text
-
-
-if __name__ == "__main__":
-    get_openai_key()
-
-    if not os.path.exists("gpt_logs"):
-        os.makedirs("gpt_logs")
-
-    input_text = read_file("input.txt")
+    input_text = ""
+    with open("input.txt", "r", encoding="utf-8") as file:
+        input_text = file.read()
     chunks = textwrap.wrap(input_text, 2000)
 
     print("Number of chunks:", len(chunks))
     input("Press Enter to continue...")
     print("\n\n")
 
-    system_prompt = read_file("prompt.txt")
-    result = list()
-    count = 0
-    for chunk in chunks:
-        count += 1
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": chunk},
-        ]
+    system_prompt = ""
+    with open("prompt.txt", "r", encoding="utf-8") as file:
+        system_prompt = file.read()
 
-        completion = chat_completion(messages)
+    results = []
+    for count, chunk in enumerate(chunks, start=1):
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": chunk}]
+        completion = client.chat_completion(messages)
         print("-- COMPLETION --\n\n")
         print(f"{completion}\n\n")
-
-        result.append(completion)
-
+        results.append(completion)
         print(f"Chunk {count} of {len(chunks)} completed\n\n")
-
         time.sleep(1)
 
-    save_file("\n\n".join(result), "output.txt")
+    with open("output.txt", "w", encoding="utf-8") as file:
+        file.write("\n\n".join(results))
+
+if __name__ == "__main__":
+    main()
