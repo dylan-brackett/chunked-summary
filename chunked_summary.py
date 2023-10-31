@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 from gpt_api_tools import OpenAIConfigHandler
 from gpt_api_tools.ChatCompletionParams import ChatCompletionParams
-from gpt_api_tools.io_utils import safe_read_text, safe_write_json
+from gpt_api_tools.io_utils import safe_read_text, safe_write_text
 from gpt_api_tools.OpenAIClient import OpenAIClient
 
 
@@ -48,7 +48,8 @@ def summarize_text(
         logging.info(f"{completion}\n\n")
         results.append(completion)
         logging.info(f"Chunk {count} of {len(chunks)} completed\n\n")
-    return results
+    result = "\n\n".join(results)
+    return result
 
 
 def main() -> None:
@@ -72,7 +73,7 @@ def main() -> None:
 
     results = summarize_text(client, params, chunks, system_prompt)
 
-    if not safe_write_json("output.json", results):
+    if not safe_write_text("output.txt", results):
         logging.error("Failed to write output to file. Exiting...")
         return
 
